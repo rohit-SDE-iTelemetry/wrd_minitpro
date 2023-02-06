@@ -16,12 +16,174 @@ from django.views import View
 from mtpo_app.models import Site, Reading
 from markupsafe import Markup
 from plotly.offline import plot
+import xlwt
+from xlwt import Workbook
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 pd.set_option('display.float_format', lambda x: '%.2f' % x)
 
+NHP = {
+    "73e0bfda": "CGSWNHP_0001",
+    "73e0c798": "SAHGAON_015",
+    "73e0c94a": "ARANG_005",
+    "73e0d4ee": "HATI_028",
+    "73e0da3c": "KASDOL_011",
+    "73e0e174": "CGSWNHP_0002",
+    "73e0efa6": "NANDGHAT_018",
+    "73e0f202": "CGSWNHP_0003",
+    "73e0fcd0": "CGSWNHP_0004",
+    "73e1007c": "CGSWNHP_0005",
+    "cgsw0010": "SARNGPAL_003",
+    "73e11dd8": "CGSWNHP_0007",
+    "73e12690": "CGSWNHP_0008",
+    "73e1130a": "CGSWNHP_0006",
+    "73e12842": "CGSWNHP_0009",
+    "73e10eae": "73E10EAE",
+    "cgsw0011a": "CGSW0011A",
+    "cgsw0016": "CGSWNHP_0010",
+    "cgsw0017": "CGSWNHP_0011",
+    "cgsw0018": "CGSWNHP_0012",
+    "cgsw0019": "CGSWNHP_0013",
+    "cgsw0020": "CGSWNHP_0014",
+    "cgsw0021": "CGSWNHP_0015",
+    "cgsw0022": "CGSWNHP_0016",
+    "cgsw0023": "CGSWNHP_0017",
+    "cgsw0024": "CGSWNHP_0018",
+    "cgsw0025": "CGSWNHP_0019",
+    "cgsw0026": "CGSWNHP_0020",
+    "cgsw0027": "CGSWNHP_0021",
+    "cgsw0028": "CGSWNHP_0022",
+    "cgsw0029": "CGSWNHP_0023",
+    "cgsw0030": "CGSWNHP_0024",
+    "cgsw0031": "CGSWNHP_0025",
+    "cgsw0032": "CGSWNHP_0026",
+    "cgsw0033": "CGSWNHP_0027",
+    "cgsw0034": "CGSWNHP_0028",
+    "cgsw0035": "CGSWNHP_0029",
+    "cgsw0036": "CGSWNHP_0030",
+    "cgsw0037": "GURUR_56",
+    "cgsw0038": "CGSWNHP_0031",
+    "cgsw0039": "CGSWNHP_0032",
+    "cgsw0040": "CGSWNHP_0033",
+    "cgsw0041": "CGSWNHP_0034",
+    "cgsw0042": "CGSWNHP_0035",
+    "cgsw0043": "CGSWNHP_0036",
+    "cgsw0044": "CGSWNHP_0037",
+    "cgsw0045": "CGSWNHP_0038",
+    "cgsw0046": "CGSWNHP_0039",
+    "cgsw0047": "Gandai_58",
+    "cgsw0048": "PARSWANI_009",
+    "cgsw0049": "CGSWNHP_0040",
+    "cgsw0050": "KOTA_023",
+    "cgsw0051": "CGSWNHP_0041",
+    "cgsw0052": "AMDI_006",
+    "cgsw0053": "DEOKAR_017",
+    "cgsw0054": "GOREGHAT_019",
+    "cgsw0055": "JAMGAON_004",
+    "cgsw0056": "CGSWNHP_0042",
+    "cgsw0057": "CGSWNHP_0043",
+    "cgsw0058": "CGSWNHP_0044",
+    "cgsw0059": "CGSWNHP_0045",
+    "cgsw0060": "CGSWNHP_0046",
+    "cgsw0062": "CGSW0062",
+    "cgsw0062a": "CGSW0062A",
+    "cgsw0063": "CGSW0063",
+    "cgsw0063a": "CGSW0063A",
+    "cgsw0064": "Gondly_56",
+    "cgsw0065": "CGSWNHP_0049",
+    "cgsw0150": "CGSWNHP_0134",
+    "cgsw0068": "CGSWNHP_0052",
+    "cgsw0069": "CGSWNHP_0053",
+    "cgsw0070": "CGSW0070",
+    "cgsw0070a": "CGSW0070A",
+    "cgsw0071": "CGSWNHP_0055",
+    "cgsw0072": "CGSWNHP_0056",
+    "cgsw0073a": "CGSW0073A",
+    "cgsw0073b": "CGSW0073B",
+    "cgsw0074": "CGSWNHP_0058",
+    "cgsw0075": "CGSWNHP_0059",
+    "cgsw0076": "CGSWNHP_0060",
+    "cgsw0077": "CGSWNHP_0061",
+    "cgsw0078": "CGSWNHP_0062",
+    "cgsw0079": "CGSWNHP_0063",
+    "cgsw0080": "CGSWNHP_0064",
+    "cgsw0081": "CGSWNHP_0065",
+    "cgsw0082": "CGSWNHP_0066",
+    "cgsw0083": "CGSWNHP_0067",
+    "cgsw0084": "CGSWNHP_0068",
+    "cgsw0085": "CGSWNHP_0069",
+    "cgsw0086": "CGSWNHP_0070",
+    "cgsw0087": "CGSWNHP_0071",
+    "cgsw0088": "CGSWNHP_0072",
+    "cgsw0089": "CGSWNHP_0073",
+    "cgsw0090": "CGSWNHP_0074",
+    "cgsw0091": "CGSWNHP_0075",
+    "cgsw0092": "CGSWNHP_0076",
+    "cgsw0093": "CGSWNHP_0077",
+    "cgsw0094": "CGSWNHP_0078",
+    "cgsw0095": "CGSWNHP_0079",
+    "cgsw0096": "CGSWNHP_0080",
+    "cgsw0097a": "CGSW0097A",
+    "cgsw0097b": "CGSW0097B",
+    "cgsw0097c": "CGSW0097C",
+    "cgsw0097d": "CGSW0097D",
+    "cgsw0097e": "CGSW0097E",
+    "cgsw0097f": "CGSW0097F",
+    "cgsw0098": "CGSWNHP_0082",
+    "cgsw0099": "CGSWNHP_0083",
+    "cgsw0100": "CGSWNHP_0084",
+    "cgsw0101": "CGSWNHP_0085",
+    "cgsw0102": "CGSWNHP_0086",
+    "cgsw0103": "CGSWNHP_0087",
+    "cgsw0104": "CGSWNHP_0088",
+    "cgsw0105": "CGSWNHP_0089",
+    "cgsw0106": "CGSWNHP_0090",
+    "cgsw0107": "CGSWNHP_0091",
+    "cgsw0108": "CGSWNHP_0092",
+    "cgsw0109": "CGSWNHP_0093",
+    "cgsw0110": "CGSWNHP_0094",
+    "cgsw0111": "CGSWNHP_0095",
+    "cgsw0112": "CGSWNHP_0096",
+    "cgsw0113": "CGSWNHP_0097",
+    "cgsw0114": "CGSWNHP_0098",
+    "cgsw0115": "CGSWNHP_0099",
+    "cgsw0116": "CGSWNHP_0100",
+    "cgsw0117": "CGSWNHP_0101",
+    "cgsw0118": "CGSWNHP_0102",
+    "cgsw0119": "CGSWNHP_0103",
+    "cgsw0120": "CGSWNHP_0104",
+    "cgsw0121": "CGSWNHP_0105",
+    "cgsw0122": "CGSWNHP_0106",
+    "cgsw0123": "CGSWNHP_0107",
+    "cgsw0124": "CGSWNHP_0108",
+    "cgsw0125": "CGSWNHP_0109",
+    "cgsw0126": "CGSWNHP_0110",
+    "cgsw0127": "CGSWNHP_0111",
+    "cgsw0128": "CGSWNHP_0112",
+    "cgsw0129": "CGSWNHP_0113",
+    "cgsw0130": "CGSWNHP_0114",
+    "cgsw0131": "CGSWNHP_0115",
+    "cgsw0132": "CGSWNHP_0116",
+    "cgsw0133": "CGSWNHP_0117",
+    "cgsw0134": "CGSWNHP_0118",
+    "cgsw0135": "CGSWNHP_0119",
+    "cgsw0136": "CGSWNHP_0120",
+    "cgsw0137": "CGSWNHP_0121",
+    "cgsw0138": "CGSWNHP_0122",
+    "cgsw0139": "CGSWNHP_0123",
+    "cgsw0140": "CGSWNHP_0124",
+    "cgsw0141": "CGSWNHP_0125",
+    "cgsw0142": "CGSWNHP_0126",
+    "cgsw0143": "CGSWNHP_0127",
+    "cgsw0144": "CGSWNHP_0128",
+    "cgsw0145": "CGSWNHP_0129",
+    "cgsw0146": "CGSWNHP_0130",
+    "cgsw0147": "CGSWNHP_0131",
+    "cgsw0148": "CGSWNHP_0132",
+    "cgsw0149": "CGSWNHP_0133",
+}
 
 def get_rgb():
     h, s, l = random.random(), 0.5 + random.random() / 2.0, 0.4 + random.random() / 5.0
@@ -30,40 +192,7 @@ def get_rgb():
 
 
 class Dashboard(View):
-
     def get(self, request):
-        # try:
-            #2021 06 01 12_Dibrugarh
-            # SOURCE_DIR = r'/home/ittpl/Desktop/WRD Chattisgarh Data 20.01.2023 to 25.01.2023'
-            # cwc_files = os.listdir(SOURCE_DIR)
-            # print(cwc_files,'files')
-            # for f in cwc_files:
-                # print("filesname", f)
-                # if f.endswith('.csv'):
-                    # fname = os.path.join(settings.SOURCE_DIR, f)
-                    # addfile = ToSystem(fpath=fname)
-                    # addfile.add2db()
-            # list_of_files = glob.glob(SOURCE_DIR)# * means all if need specific format then *.csv
-            # file_type = '\*amp'
-            # files = glob.glob(SOURCE_DIR + file_type)
-            # filename = max(files, key=os.path.getctime)
-            #filename = max(list_of_files, key=int(os.path.getctime(r'D:\FTP_Raw\Jaipur_Raw')))
-            # print(filename,"i am the latest file ")
-            #filename = datetime.now().strftime('%Y%m%d%H.amp')
-            # filename = os.path.join(settings.SOURCE_DIR, filename)
-            # addfile = ToSystem(fpath=filename)
-            # print('Updating Database %s' % filename)
-            # addfile.add2db()
-        # except IndexError: #Exception as e:
-        #     print(str(e))
-        #     pass
-        # try:
-        #     site = Site.objects.get(prefix=settings.PREFIX)
-        #     content = {'station': site}
-        #     graph_details = render_chart(site=site)
-        #     content.update(**graph_details)
-        # except Site.DoesNotExist:
-        # except:
         content = {}
         sites = Site.objects.all().order_by('name')
         for i in sites:
@@ -78,6 +207,79 @@ class Dashboard(View):
         info_template = get_template('dashboard.html')
         html = info_template.render(content, request)
         return HttpResponse(html)
+
+def download_report(request):
+    response = HttpResponse(content_type='application/ms-excel')
+    response['Content-Disposition'] = 'attachment; filename="site_report.xlsx"'
+    startdate = '2023-02-06'
+    enddate = '2023-02-07'
+
+    wb = Workbook()
+    style = xlwt.easyxf('font: bold 1')
+    live = xlwt.easyxf('font: bold 1, color green;')
+    delay = xlwt.easyxf('font: bold 1, color orange;')
+    offline = xlwt.easyxf('font: bold 1, color red;')
+    # add_sheet is used to create sheet.
+    sheet1 = wb.add_sheet('Sheet 1')
+    sheet1.write(0, 0, 'DATE :', style)
+    sheet1.write(0, 1, f'{startdate} - {enddate}')
+
+    counter = 2
+    sites = Site.objects.all().order_by('name')
+    for site in sites:
+        sheet1.write(counter, 0, 'Site Name', style)
+        sheet1.write(counter, 1, 'WIMS Code', style)
+        sheet1.write(counter, 2, 'Status', style)
+        counter = counter + 1
+        sheet1.write(counter, 0, site.name.capitalize())
+        sheet1.write(counter, 1, NHP.get(site.prefix.lower(),'-'))
+        if(site.status == 'Live'):
+            sheet1.write(counter, 2, site.status, live)
+        elif(site.status == 'Delay'):
+            sheet1.write(counter, 2, site.status, delay)
+        else:
+            sheet1.write(counter, 2, site.status, offline)
+
+        counter = counter + 1
+        col = 1
+        readingobj = Reading.objects.filter(site=site, timestamp__range=[startdate, enddate]).order_by('timestamp')
+        if(readingobj.count() > 0):
+            sheet1.write(counter, 0, 'Timestamp', style)
+        # print('readingobj >>>> ',readingobj, readingobj.count())
+        # df = pd.DataFrame.from_records(list(Reading.objects.filter(site=site, timestamp__range=[startdate, enddate]).values('timestamp', 'reading')))
+        # df['data'] = df['reading'].apply(eval)
+        # print('df >> ',df)
+        if(readingobj.count() > 0):
+            param_count = []
+            for i in eval(site.parameters):
+                param_count.append(i.lower())
+                sheet1.write(counter, col, i.capitalize(), style)
+                col = col + 1
+
+            for read in readingobj:
+                counter = counter + 1
+                sheet1.write(counter, 0, str(read.timestamp))
+                readings = eval(read.reading)
+                par_col = 1
+                for parms in param_count:
+                    try:
+                        sheet1.write(counter, par_col, str(readings[parms]))
+                    except:
+                        sheet1.write(counter, par_col, str(' '))
+                    par_col = par_col + 1
+
+
+
+            counter = counter + 3
+        else:
+            counter = counter + 1
+
+        # if counter >= 50:
+        #     break
+
+    wb.save(response)
+    return response
+
 
 
 class Reports(View):

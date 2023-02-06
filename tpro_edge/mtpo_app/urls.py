@@ -10,7 +10,9 @@ from mtpo_app.views import *
 app_name = 'dashboard'
 urlpatterns = [
     path('', Dashboard.as_view(), name='dashboard'),
-    path('', RefreshDB.as_view(), name='refresh-db'),
-    path('', Reports.as_view(), name='report'),
-    path('', update_chart_n_table),
+    # path('', RefreshDB.as_view(), name='refresh-db'),
+    # path('', Reports.as_view(), name='report'),
+    # path('', update_chart_n_table),
+    path('download-report', download_report, name='download_report'),
+
 ]

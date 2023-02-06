@@ -95,6 +95,13 @@ DATABASES = {
    }
 }
 
+# create a database named wrd_user
+# CREATE DATABASE wrd_db;
+# CREATE USER wrd_user WITH PASSWORD 'wrd@123456'; 
+# ALTER ROLE wrd_user SET client_encoding TO 'utf8'; 
+# ALTER ROLE wrd_user SET default_transaction_isolation TO 'read committed';
+# ALTER ROLE wrd_user SET timezone TO 'UTC';
+# GRANT ALL PRIVILEGES ON DATABASE wrd_db TO wrd_user;
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
