@@ -1,0 +1,106 @@
+{% extends "layout.html" %} {% load static %}
+
+{% block content %}
+<!-- Begin Page Content -->
+<style>
+
+.ScrollStyle{
+    max-height: 400px;
+    overflow-y: scroll;
+}
+
+</style>
+<meta http-equiv="refresh" content="1800">
+<div class="container-fluid mt-1">
+    <div class="card"
+      style="box-shadow: 0 0 1rem 0 rgba(0, 0, 0, .2);border-radius:10px;">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-lg-6">
+            <h5 class="card-title text-primary"><b><small><strong><i class="fa-solid fa-droplet"></i> WRD CHHATTISGARH</strong></small></b></h5>
+          </div>
+          <div class="col-lg-3 text-center">
+            <a href=""><small><i class="fa-solid fa-file-arrow-down"></i> Download Daily Report</small></a>
+          </div>
+          <div class="col-lg-3 text-right">
+            <small><strong>Last Data Sync. At : <span class="text-danger" style="border: 1px solid grey;border-radius:5px;padding:5px;">{% now "jS F Y H:i:s" %}</span></strong><a href="/" style="text-decoration: none;"><span><strong>&nbsp;&nbsp;<i class="fa-solid fa-rotate text-success"></i></strong></span></a></small>
+          </div>
+        </div>
+        <div class="row mt-1 mb-1">
+          <div class="col-lg-6">
+            <a href="#" class="pt-1 pb-1 badge badge-dark text-white">&nbsp;&nbsp;Total Sites : {{sites|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-success text-white">&nbsp;&nbsp;Live : {{live|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-warning text-white">&nbsp;&nbsp;Delay : {{delay|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-danger text-white">&nbsp;&nbsp;Offline : {{offline|length}}&nbsp;&nbsp;</a>
+          </div>
+        </div>
+        <div class="row" style="">
+          <div class="col-lg-12">
+            <table id="example" class="table table-sm table-bordered example" style="width:100%">
+              <thead class="bg-success">
+                <tr>
+                  <th class="text-center text-white bg-success" width="250">Station
+                  </th>
+                  <th class="text-center text-white bg-success" width="150">Prefix
+                  </th>
+                  <th class="text-center text-white bg-success" width="100">Status
+                  </th>
+                  <th class="text-center text-white bg-success" width="200">Last Reading At
+                  </th>
+                  <th class="text-center text-white bg-success" width="200">Last File At
+                  </th>
+                  <th class="text-center text-white bg-success" width="700">Reading
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for site in sites %}
+                <tr>
+                  <td class="text-center text-info"><b><small>{{site.name}}</small></b></td>
+                  <td class="text-center text-primary"><small><strong>{{site.prefix}}</strong></small></td>
+                  <td class="text-center">
+                    {% if site.status == 'Live' %}
+                      <a class="text-white badge badge-success"><b>{{site.status}}</b></a>
+                    {% elif site.status == 'Delay' %}
+                      <a class="text-white badge badge-warning"><b>{{site.status}}</b></a>
+                    {% elif site.status == 'Offline' %}
+                      <a class="text-white badge badge-danger"><b>{{site.status}}</b></a>
+                    {% elif site.status == 'Disabled' %}
+                      <a class="text-white badge badge-info"><b>{{site.status}}</b></a>
+                    {% else %}
+                      <a class="text-danger"><small><b>{{site.status}}</b></small></a>
+                    {% endif %}
+                  </td>
+                  <td class="text-center"><small>{{site.last_reading_at}}</small>
+                  </td>
+                  <td class="text-center"><small>{{site.last_file_at}}</small>
+                  </td>
+                  <td class="text-left">{{site.last_reading}}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+<div class="row mb-4">
+</div>
+<div class="row mb-4">
+</div>
+<div class="row mb-4">
+</div>
+<!-- /.container-fluid -->
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.js"></script>
+<script>
+ $(document).ready(function () {
+    $('#example').DataTable();
+    $('.example').addClass('bs-select');
+  });
+  $('table').DataTable();
+</script>
+{% endblock %}

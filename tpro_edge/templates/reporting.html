@@ -1,0 +1,116 @@
+{% extends "layout.html" %} {% load static %}
+{% block content %}
+<!-- Begin Page Content -->
+<div class="container-fluid">
+    <p><a href="{% url 'dashboard:dashboard' %}"><i class="fa fa-reply"></i><span>&nbsp;Dashboard</span></a></p>
+  <!-- {% if config_required %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <center> Please configure station, or contact <a href="it@aaxisnano.com" >it@aaxisnano.com</a></center>
+        </div>
+    </div> -->
+    <!-- {% else %} -->
+    <div class="card shadow mb-6">
+    <div class=" card-header text-white py-3 d-flex flex-row align-items-center justify-content-between">
+      <h1 class="h3 mb-0 text-gray-800">{{ station.name }} Report&nbsp;</h1>
+      <a href="javascript:exportTableToCSV('report.csv');"
+         class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-download fa-sm text-white-50"></i>&nbsp;Download
+      </a>
+    </div>
+    <!-- Card Body -->
+    <div class="card-body">
+      <div class="btn-group mr-2" role="group" aria-label="Row Item 2">
+                    <button class="btn-secondary btn-sm btn" type="button" >
+                        <a id="reportrange">
+                            <i class="fa fa-calendar"></i>&nbsp;
+                            <span></span> <i class="fa fa-caret-down"></i>
+                        </a>
+                    </button>
+                    <button type="button" title="Update Chart" id="updateChart"
+                            onclick="redraw('{{details.id}}');" class="btn btn-primary btn-sm">
+                        Update
+                    </button>
+          <span id="loader" style="visibility: hidden;">
+                    <img src="/static/img/loader.gif" class="loader" height="20" width="20">
+                </span>
+                </div>
+        <br>
+        <br>
+        <p id="daterange">{{ details.from }} - {{ details.to }}</p>
+      <div class="table-responsive" id="tabular">
+        {{ tabular|safe }}
+      </div>
+    </div>
+  </div>
+    <!-- {% endif %} -->
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script type="text/javascript" src="/static/js/moment.min.js"></script>
+<script type="text/javascript" src='/static/js/chart.min.js'></script>
+<script type="text/javascript" src='/static/js/daterangepicker.min.js'></script>
+<script type="text/javascript" src="/static/js/chartjs-plugin-zoom.min.js"></script>
+<script type="text/javascript" src="/static/js/dropdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/static/css/daterangepicker.css">
+<link rel="stylesheet" type="text/css" href="/static/css/dropdown.min.css">
+
+  <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+  <script src="{% static 'vendor/datatables/dataTables.bootstrap4.min.js' %}"></script>
+  <script src="{% static 'js/demo/datatables-demo.js' %}"></script>
+<script>
+var fromDate = '{{ details.from }}';
+var toDate = '{{ details.to }}';
+fromDate = moment(fromDate).format('MM/DD/YYYY HH:mm');
+toDate = moment(toDate).format('MM/DD/YYYY HH:mm');
+
+// Date Range Picker script start \\
+$(function() {
+var start = moment(fromDate);
+var end = moment(toDate);
+
+function cb(start, end) {
+    $('#reportrange span').html(start.format('DD/MM/YYYY HH:mm') + ' - ' + end.format('DD/MM/YYYY HH:mm'));
+    fromDate = start.format('MM/DD/YYYY HH:mm');
+    toDate = end.format('MM/DD/YYYY HH:mm');
+    }
+    $('#reportrange').daterangepicker({
+        timePicker: true,
+        startDate:start,
+        endDate: end,
+        maxDate: moment(),
+        ranges: {
+           'Today': [moment().startOf('day'), moment()],
+           'Yesterday': [moment().subtract(1, 'days').startOf('day'), moment()],
+           'Last 7 Days': [moment().subtract(6, 'days').startOf('day'), moment()],
+           'Last 30 Days': [moment().subtract(29, 'days').startOf('day'), moment()],
+           'This Month': [moment().startOf('month').startOf('day'), moment().endOf('month')],
+        },
+    }, cb);
+    cb(start, end);
+});
+function redraw(site_id){
+    var loader = document.getElementById('loader');
+    var tabular = document.getElementById('tabular');
+    var daterange = document.getElementById('daterange');
+    loader.style.visibility = "visible";
+    var URL = '/graphdata?site='+site_id+'&from_date='+fromDate+'&to_date='+toDate+'&tabular=true';
+    $.ajax({
+            url: URL,
+            type: 'GET',
+            success: function(response) {
+                    tabular.innerHTML = '';
+                    tabular.innerHTML = response.tabular;
+                    loader.style.visibility = "hidden";
+                    daterange.innerHTML = response.from + ' - ' + response.to;
+            },
+            error: function(response) {
+            tabular.innerHTML = '<h1> Please try again </h1>';
+            }
+    });
+}
+
+</script>
+{% endblock %}
