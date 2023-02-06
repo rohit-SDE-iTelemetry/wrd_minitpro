@@ -28,10 +28,10 @@
         </div>
         <div class="row mt-1 mb-1">
           <div class="col-lg-6">
-            <a href="#" class="pt-1 pb-1 badge badge-dark text-white">&nbsp;&nbsp;Total Sites : {{sites|length}}&nbsp;&nbsp;</a>
-            <a href="#" class="pt-1 pb-1 badge badge-success text-white">&nbsp;&nbsp;Live : {{live|length}}&nbsp;&nbsp;</a>
-            <a href="#" class="pt-1 pb-1 badge badge-warning text-white">&nbsp;&nbsp;Delay : {{delay|length}}&nbsp;&nbsp;</a>
-            <a href="#" class="pt-1 pb-1 badge badge-danger text-white">&nbsp;&nbsp;Offline : {{offline|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-dark text-white" onclick="view_all()">&nbsp;&nbsp;Total Sites : {{sites|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-success text-white" onclick="view_live()">&nbsp;&nbsp;Live : {{live|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-warning text-white" onclick="view_delay()">&nbsp;&nbsp;Delay : {{delay|length}}&nbsp;&nbsp;</a>
+            <a href="#" class="pt-1 pb-1 badge badge-danger text-white" onclick="view_offline()">&nbsp;&nbsp;Offline : {{offline|length}}&nbsp;&nbsp;</a>
           </div>
         </div>
         <div class="row" style="">
@@ -39,45 +39,98 @@
             <table id="example" class="table table-sm table-bordered example" style="width:100%">
               <thead class="bg-success">
                 <tr>
-                  <th class="text-center text-white bg-success" width="250">Station
+                  <th class="text-center text-white bg-info" width="250">Station
                   </th>
-                  <th class="text-center text-white bg-success" width="150">Prefix
+                  <th class="text-center text-white bg-info" width="150">Prefix
                   </th>
-                  <th class="text-center text-white bg-success" width="100">Status
+                  <th class="text-center text-white bg-info" width="100">Status
                   </th>
-                  <th class="text-center text-white bg-success" width="200">Last Reading At
+                  <th class="text-center text-white bg-info" width="200">Last Reading At
                   </th>
-                  <th class="text-center text-white bg-success" width="200">Last File At
+                  <th class="text-center text-white bg-info" width="700">Reading
                   </th>
-                  <th class="text-center text-white bg-success" width="700">Reading
+                  <th class="text-center text-white bg-info" width="200">Last File At
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {% for site in sites %}
-                <tr>
-                  <td class="text-center text-info"><b><small>{{site.name}}</small></b></td>
-                  <td class="text-center text-primary"><small><strong>{{site.prefix}}</strong></small></td>
-                  <td class="text-center">
-                    {% if site.status == 'Live' %}
-                      <a class="text-white badge badge-success"><b>{{site.status}}</b></a>
-                    {% elif site.status == 'Delay' %}
-                      <a class="text-white badge badge-warning"><b>{{site.status}}</b></a>
-                    {% elif site.status == 'Offline' %}
-                      <a class="text-white badge badge-danger"><b>{{site.status}}</b></a>
-                    {% elif site.status == 'Disabled' %}
-                      <a class="text-white badge badge-info"><b>{{site.status}}</b></a>
-                    {% else %}
-                      <a class="text-danger"><small><b>{{site.status}}</b></small></a>
-                    {% endif %}
-                  </td>
-                  <td class="text-center"><small>{{site.last_reading_at}}</small>
-                  </td>
-                  <td class="text-center"><small>{{site.last_file_at}}</small>
-                  </td>
-                  <td class="text-left">{{site.last_reading}}
-                  </td>
-                </tr>
+                {% if site.status == 'Live' %}
+                  <tr class="live">
+                    <td class="text-center text-info"><b><small>{{site.name}}</small></b></td>
+                    <td class="text-center text-primary"><small><strong>{{site.prefix}}</strong></small></td>
+                    <td class="text-center">
+                      {% if site.status == 'Live' %}
+                        <a class="text-white badge badge-success"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Delay' %}
+                        <a class="text-white badge badge-warning"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Offline' %}
+                        <a class="text-white badge badge-danger"><b>{{site.status}}</b></a>
+                      {% else %}
+                        <a class="text-danger"><small><b>{{site.status}}</b></small></a>
+                      {% endif %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_reading_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                    <td class="text-left">
+                      {% for k, v in site.last_dict_reading.items %}
+                        <span class="badge badge-secondary">{{k|title}} : {{v}}</span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_file_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                  </tr>
+                {% elif site.status == 'Delay' %}
+                  <tr class="delay">
+                    <td class="text-center text-info"><b><small>{{site.name}}</small></b></td>
+                    <td class="text-center text-primary"><small><strong>{{site.prefix}}</strong></small></td>
+                    <td class="text-center">
+                      {% if site.status == 'Live' %}
+                        <a class="text-white badge badge-success"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Delay' %}
+                        <a class="text-white badge badge-warning"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Offline' %}
+                        <a class="text-white badge badge-danger"><b>{{site.status}}</b></a>
+                      {% else %}
+                        <a class="text-danger"><small><b>{{site.status}}</b></small></a>
+                      {% endif %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_reading_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                    <td class="text-left">
+                      {% for k, v in site.last_dict_reading.items %}
+                        <span class="badge badge-secondary">{{k|title}} : {{v}}</span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_file_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr class="offline">
+                    <td class="text-center text-info"><b><small>{{site.name}}</small></b></td>
+                    <td class="text-center text-primary"><small><strong>{{site.prefix}}</strong></small></td>
+                    <td class="text-center">
+                      {% if site.status == 'Live' %}
+                        <a class="text-white badge badge-success"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Delay' %}
+                        <a class="text-white badge badge-warning"><b>{{site.status}}</b></a>
+                      {% elif site.status == 'Offline' %}
+                        <a class="text-white badge badge-danger"><b>{{site.status}}</b></a>
+                      {% else %}
+                        <a class="text-danger"><small><b>{{site.status}}</b></small></a>
+                      {% endif %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_reading_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                    <td class="text-left">
+                      {% for k, v in site.last_dict_reading.items %}
+                        <span class="badge badge-secondary">{{k|title}} : {{v}}</span>
+                      {% endfor %}
+                    </td>
+                    <td class="text-center"><small>{{site.last_file_at|date:"d b,Y H:m:s a"}}</small>
+                    </td>
+                  </tr>
+                {% endif %}
                 {% endfor %}
               </tbody>
             </table>
@@ -93,14 +146,26 @@
 <div class="row mb-4">
 </div>
 <!-- /.container-fluid -->
-
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.css">
-<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.js"></script>
 <script>
- $(document).ready(function () {
-    $('#example').DataTable();
-    $('.example').addClass('bs-select');
-  });
-  $('table').DataTable();
+  function view_all(){
+    $('.live').show();
+    $('.delay').show();
+    $('.offline').show();
+  }
+  function view_live(){
+    $('.live').show();
+    $('.delay').hide();
+    $('.offline').hide();
+  }
+  function view_delay(){
+    $('.live').hide();
+    $('.delay').show();
+    $('.offline').hide();
+  }
+  function view_offline(){
+    $('.live').hide();
+    $('.delay').hide();
+    $('.offline').show();
+  }
 </script>
 {% endblock %}

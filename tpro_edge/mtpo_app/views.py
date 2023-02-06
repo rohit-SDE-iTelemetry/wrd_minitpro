@@ -65,7 +65,10 @@ class Dashboard(View):
         # except Site.DoesNotExist:
         # except:
         content = {}
-        content['sites'] = Site.objects.all().order_by('name')
+        sites = Site.objects.all().order_by('name')
+        for i in sites:
+            i.last_dict_reading = eval(i.last_reading)
+        content['sites'] = sites
         content['live'] = Site.objects.filter(status='Live')
         content['delay'] = Site.objects.filter(status='Delay')
         content['offline'] = Site.objects.filter(status='Offline')
