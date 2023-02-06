@@ -67,7 +67,10 @@ class Dashboard(View):
         content = {}
         sites = Site.objects.all().order_by('name')
         for i in sites:
-            i.last_dict_reading = eval(i.last_reading)
+            try:
+                i.last_dict_reading = eval(i.last_reading)
+            except:
+                i.last_dict_reading = {'d' : 's'}
         content['sites'] = sites
         content['live'] = Site.objects.filter(status='Live')
         content['delay'] = Site.objects.filter(status='Delay')

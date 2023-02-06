@@ -11,7 +11,7 @@ import pandas as pd
 import shutil
 import glob
 from multiprocessing import  Pool
-import timeok
+import time
 import pysftp
 from os.path import basename
 from datetime import datetime, timedelta
@@ -20,7 +20,9 @@ from tqdm import tqdm
 
 TS_FMT = "%Y-%m-%d %H:%M:%S"
 
-WATCHDIRECTORY = "/home/rohit/Desktop/dev/tpro_edge/wrd data/"
+WATCHDIRECTORY = "/home/rohit/Desktop/dev/tpro_edge/06.02.2023/"
+T_DAY = '/home/rohit/Desktop/dev/tpro_edge/processed_files/06Feb23/'
+JUNK = '/home/rohit/Desktop/dev/tpro_edge/JUNK/'
 
 PARAMETER_SENSOR_MAPPING = {1: "battery capacity", 2: "level",
                             3: 'hourly rainfall', 50: 'daily rainfall',
@@ -418,39 +420,52 @@ class Reader():
 
         if(details):
             for reads in details.get('readings'):
-                ti_m = os.path.getmtime(details.get('filename'))
-                m_ti = time.ctime(ti_m)
-                t_obj = time.strptime(m_ti)
-                file_T_stamp = time.strftime("%Y-%m-%d %H:%M:%S", t_obj)
-                reading_ts = reads['timestamp']
-                reads.pop('timestamp')
+                # print('details >>>> ',details)
+                # print('params >>>> ',details.get('params'))
+                # print('==================================================')
 
+                # try:
+                try:
+                    ti_m = os.path.getmtime(details.get('filename'))
+                    m_ti = time.ctime(ti_m)
+                    t_obj = time.strptime(m_ti)
+                    file_T_stamp = time.strftime("%Y-%m-%d %H:%M:%S", t_obj)
+                    reading_ts = reads['timestamp']
+                    reads.pop('timestamp')
+                    
+                    readingObj = Reading(site = Site.objects.get(prefix = details.get('prefix').lower()),
+                                        reading = str(reads),
+                                        timestamp = reading_ts,
+                                        last_file_at = file_T_stamp)
+                    readingObj.save()
+                    
+                    siteObj = Site.objects.get(prefix = details.get('prefix').lower())
+                    siteObj.last_reading = str(reads)
+                    siteObj.last_reading_at = reading_ts
+                    siteObj.last_file_at = file_T_stamp
+                    siteObj.parameters = details.get('params')
 
-                readingObj = Reading(site = Site.objects.get(prefix = details.get('prefix').lower()),
-                                    reading = str(reads),
-                                    timestamp = reading_ts,
-                                    last_file_at = file_T_stamp)
-                readingObj.save()
-                
-                siteObj = Site.objects.get(prefix = details.get('prefix').lower())
-                siteObj.last_reading = str(reads)
-                siteObj.last_reading_at = reading_ts
-                siteObj.last_file_at = file_T_stamp
-                siteObj.parameters = details.get('params')
+                    then = datetime.strptime(str(reading_ts), "%Y-%m-%d %H:%M:%S")
+                    now  = datetime.now()
+                    duration = now - then 
+                    duration_in_s = duration.total_seconds() 
+                    hours = divmod(duration_in_s, 3600)[0] 
 
-                then = datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S")
-                now  = datetime.now()
-                duration = now - then 
-                duration_in_s = duration.total_seconds() 
-                hours = divmod(duration_in_s, 3600)[0] 
+                    if(int(hours) >= int(4) and int(hours) < int(48)):
+                        siteObj.status = 'Delay' 
+                    elif(int(hours) >= int(48)):
+                        siteObj.status = 'Offline'
+                    else:
+                        siteObj.status = 'Live'
+                    siteObj.save()
 
-                if(int(hours) >= int(4) and int(hours) < int(48)):
-                   siteObj.status = 'Delay' 
-                elif(int(hours) >= int(48)):
-                    siteObj.status = 'Offline'
-                else:
-                    siteObj.status = 'Live'
-                siteObj.save()
+                    shutil.move(details.get('filename'), T_DAY + details.get('stn_filename'))
+                except FileNotFoundError as err:
+                    pass
+                except IntegrityError as err:
+                    shutil.move(details.get('filename'), JUNK + details.get('stn_filename'))
+                # except:
+                #     pass
 
     def _temporary(self):
         # print('formatting  WRD file: %s' % self.filepath)
@@ -558,10 +573,10 @@ def main():
     all_csv = glob.glob(path + "/*.csv")
     all_json = glob.glob(path + "/*.json")
     all_files = all_csv + all_json
-    for f in tqdm(all_files[:40]):
+    for f in tqdm(all_files[:]):
         observer = Reader(os.path.join(path, os.path.basename(f)))
         observer.initiate()
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
     toc = time.time()
     # print('Done in {:.4f} seconds'.format(toc - tic))

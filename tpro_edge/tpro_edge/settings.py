@@ -140,3 +140,4 @@ SOURCE_DIR = r'/home/ittpl/Desktop/WRD Chattisgarh Data 20.01.2023 to 25.01.2023
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
