@@ -17,12 +17,24 @@ from os.path import basename
 from datetime import datetime, timedelta
 import numpy as np
 from tqdm import tqdm
+import logging
+
+# FORMAT = "%(asctime)s - %(message)s"
+# logging.basicConfig(filename='/home/wrdnhp/tpro_edge/wrd_minitpro/cgsw.log', filemode='a', format=FORMAT)
+# log = logging.getLogger()
+# log.setLevel(logging.INFO)
+
 
 TS_FMT = "%Y-%m-%d %H:%M:%S"
+PARENT_DIR = '/home/rohit/Desktop/dev/tpro_edge/'
 
-WATCHDIRECTORY = "/home/rohit/Desktop/dev/tpro_edge/06.02.2023/"
-T_DAY = '/home/rohit/Desktop/dev/tpro_edge/processed_files/06Feb23/'
+WATCHDIRECTORY = "/home/rohit/Desktop/dev/tpro_edge/watch_directory/"
+PROCESSED_FILES = '/home/rohit/Desktop/dev/tpro_edge/processed_files/'
 JUNK = '/home/rohit/Desktop/dev/tpro_edge/JUNK/'
+
+tday = datetime.now().date().strftime('%d%b%Y')
+TDAY_JUNK = JUNK+str(tday)+'_bad_files/'
+TDAY_PROCESSED = PROCESSED_FILES+str(tday)+'/'
 
 PARAMETER_SENSOR_MAPPING = {1: "battery capacity", 2: "level",
                             3: 'hourly rainfall', 50: 'daily rainfall',
@@ -366,6 +378,16 @@ WRD_PARAMETER_SENSOR_MAPPING = {1: "battery capacity", 2: "level",
                             78: 'Gate Sensor 68'}
 
 
+def _check_dependencies():
+    dir_list = [
+        TDAY_PROCESSED,
+        TDAY_JUNK,
+    ]
+    for dir in dir_list:
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+
 def get_file_information(file_name):
     size = os.path.getsize(file_name)
     size_of_file = size / 1024
@@ -383,12 +405,8 @@ class Reader():
         self.filename = basename(self.filepath)
         self.ftype = None
 
-        # print('self.filepath >>> ',self.filepath)
-        # print('self.filename >>> ',self.filename)
-
     def initiate(self):
         details = {}
-        # print('%s: initiate' % self.filename)
         if (self.filename.strip().startswith('_')):
             self.prefix = self.filename.split('_')[-1].replace(".csv", "")
             self.ftype = "_komoline"
@@ -402,8 +420,6 @@ class Reader():
             {k.strip().lower(): v for k, v in row.items()}
             for row in preadings]
 
-        # print('readings >>>> ',readings)
-        # print('params >>>> ',params)
         details = {
             'params': list(params),
             'readings': readings,
@@ -416,15 +432,12 @@ class Reader():
                 self.filepath)
         }
         # print('details >>>> ',details)
-        # details >>>>  {'params': ['battery capacity', 'level', 'hourly rainfall', 'daily rainfall'], 'readings': [{'battery capacity': 13.64, 'timestamp': '2023-02-05 11:00:00', 'level': 269.896, 'hourly rainfall': 0.0, 'daily rainfall': 0.0}], 'filename': '/home/rohit/Desktop/dev/tpro_edge/wrd data/CGSW0054_GOREGHAT_019_050223110116.csv', 'stn_filename': 'CGSW0054_GOREGHAT_019_050223110116.csv', 'prefix': 'CGSW0054', 'orig_params': ['battery capacity', 'level', 'hourly Rainfall', 'daily Rainfall'], 'filetype': '_temporary', 'file_info': 'File: CGSW0054_GOREGHAT_019_050223110116.csv Size:0.16 KB'}
-
         if(details):
+            print('details >>>> ',details,'\n')
+            self.prefix = details.get('prefix').lower()
             for reads in details.get('readings'):
-                # print('details >>>> ',details)
-                # print('params >>>> ',details.get('params'))
-                # print('==================================================')
-
-                # try:
+                self.readings = reads
+                self._send2wims()                
                 try:
                     ti_m = os.path.getmtime(details.get('filename'))
                     m_ti = time.ctime(ti_m)
@@ -432,7 +445,10 @@ class Reader():
                     file_T_stamp = time.strftime("%Y-%m-%d %H:%M:%S", t_obj)
                     reading_ts = reads['timestamp']
                     reads.pop('timestamp')
-                    
+
+                    print('file_T_stamp >>> ',file_T_stamp)
+                    print('reading_ts >>> ',reading_ts)
+                
                     readingObj = Reading(site = Site.objects.get(prefix = details.get('prefix').lower()),
                                         reading = str(reads),
                                         timestamp = reading_ts,
@@ -459,13 +475,98 @@ class Reader():
                         siteObj.status = 'Live'
                     siteObj.save()
 
-                    shutil.move(details.get('filename'), T_DAY + details.get('stn_filename'))
+                    shutil.move(details.get('filename'), TDAY_PROCESSED + details.get('stn_filename'))
                 except FileNotFoundError as err:
                     pass
                 except IntegrityError as err:
-                    shutil.move(details.get('filename'), JUNK + details.get('stn_filename'))
-                # except:
-                #     pass
+                    shutil.move(details.get('filename'), TDAY_JUNK + details.get('stn_filename'))
+                except:
+                    shutil.move(details.get('filename'), TDAY_JUNK + details.get('stn_filename'))
+            print('==================================================\n\n')
+
+
+
+    def _send2wims(self):
+        host = '203.160.138.78'
+        user = 'chhattisgarh_sw'
+        passwd = 'chhattisw@987'
+
+        if self.readings:
+            tmp_fpath, fname2send = self._format2wims()
+            if tmp_fpath:
+                try:
+                    print("sending file to wrd chattisgarh test server %s, %s" % (fname2send, tmp_fpath))
+                    # with pysftp.Connection(host=host,username=user,password=passwd) as sftp:
+                    #     sftp.put(localpath=tmp_fpath,remotepath="/chhattisgarh_sw/%s" % fname2send,confirm=False)
+                    #     sftp.close()
+                    #     print('%s sent to %s FTP' % (fname2send, host))
+                    os.remove(tmp_fpath)
+                except FileNotFoundError:
+                    print('%s file not found for test server' % fname2send)
+                except Exception as err:
+                    print('%s sending failed to %s FTP test server  due to : %s' % (fname2send, host, err))
+                    return False
+            else:
+                print('no wims tmp_path detected.')
+        else:
+            print("File empty or error")
+
+
+    def _format2wims(self):
+        """ this fxn needs timestamp as a datetime object"""
+        timestamp = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M')
+        # Dev-268
+        if datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%M') == '30':
+            print('30 min. file skipped for %s' % self.prefix)
+            return None, None
+        timestamp_for_filename = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime("%y%m%d_%H%M%S_")
+        # print('%s station reading: %s' % (self.prefix,self.readings))
+        prefix = self.prefix.lower()
+        get_id = NHP.get(prefix, '')
+        wims_site_id = ''
+        if get_id:
+            wims_site_id = NHP.get(prefix, '').upper()
+        else:
+            print('Wims Station Id not found for: %s' % prefix)
+            return False
+
+        data_str = ['&' + prefix.upper(), timestamp, '4190098101']
+
+        # komoline prefixes for WIMS
+        komoline_prefix = ['73e1130a','73e0e174','73e12842','73e12690']
+        if(prefix in komoline_prefix):
+            if prefix.upper() in GATE_SITES:
+                for k, v in PARAMETER_SENSOR_MAPPING_FOR_KOMOLINE.items():
+                    data_str.append(str(self.readings.get(v, "--")))
+            else:
+                for k, v in PARAMETER_SENSOR_MAPPING_FOR_KOMOLINE.items():
+                    if not v.startswith('Gate'):
+                        data_str.append(str(self.readings.get(v, "--")))
+                    else:
+                        data_str.append(str(self.readings.get(v, "--")))
+                        #continue
+        else:
+            if prefix.upper() in GATE_SITES:
+                for k, v in PARAMETER_SENSOR_MAPPING.items():
+                    data_str.append(str(self.readings.get(v, "--")))
+            else:
+                for k, v in PARAMETER_SENSOR_MAPPING.items():
+                    if not v.startswith('Gate'):
+                        data_str.append(str(self.readings.get(v, "--")))
+                    else:
+                        data_str.append(str(self.readings.get(v, "--")))
+                        #continue
+
+
+        fname2send = "CGSW_" + timestamp_for_filename + wims_site_id + ".csv"
+        fpath = os.path.join('/tmp', fname2send)
+        # print('data_str >>> ',data_str)
+        with open(fpath, 'w') as fp:
+            fp.write(','.join(data_str))
+        return fpath, fname2send
+
+
+
 
     def _temporary(self):
         # print('formatting  WRD file: %s' % self.filepath)
@@ -490,11 +591,9 @@ class Reader():
                 timestamp_dt = value_df['timestamp'].to_list()
                 timestamp = [datetime.strftime(t, TS_FMT) for t in
                              timestamp_dt]
-                new_df[col] = pd.Series(
-                    values)  # e.g CGSW0090 file, uneven readings
+                new_df[col] = pd.Series(values)  # e.g CGSW0090 file, uneven readings
                 # send timestamp in datetime format to wims function
                 new_df['timestamp'] = pd.Series(timestamp)
-            # print('new_df >>>>>>>>>>',new_df)
             if self.prefix.lower() in WRD_CG_EVAPORATION_SITES:
                 start_time = pd.to_datetime("20:00:00", format="%H:%M:%S").time()
                 end_time = pd.to_datetime("5:00:00", format="%H:%M:%S").time()
@@ -523,7 +622,6 @@ class Reader():
                         # print('%s evaporation not updated due to error : %s' % (self.prefix, err))
             else:
                 readings = new_df.to_dict(orient='records')
-            # print('readings >>>>>>>>>>',readings)
             
             return readings, params
         except pd.errors.EmptyDataError:
@@ -537,7 +635,6 @@ class Reader():
 
 
     def _komoline(self):
-        # print('komoline file: %s' % self.filename)
         try:
             df_ = pd.read_csv(self.filepath, header=None)
             df = df_.iloc[:, : 7]
@@ -554,13 +651,9 @@ class Reader():
             readings = df.to_dict(orient='records')
             params = df.columns.to_list()
             params.remove('timestamp')
-            # print("komoline readings :{readings}".format(readings=readings))
-            # print("komoline file params :{params}".format(params=params))
             return readings, params
         except Exception as err:
             pass
-            # print("komoline file error")
-            # print(err)
 
 
 
@@ -569,6 +662,7 @@ class Reader():
 
 def main():
     tic = time.time()
+    _check_dependencies()
     path = WATCHDIRECTORY
     all_csv = glob.glob(path + "/*.csv")
     all_json = glob.glob(path + "/*.json")
@@ -576,14 +670,14 @@ def main():
     for f in tqdm(all_files[:]):
         observer = Reader(os.path.join(path, os.path.basename(f)))
         observer.initiate()
-        # time.sleep(0.5)
+        time.sleep(0.5)
 
-    toc = time.time()
+    # toc = time.time()
     # print('Done in {:.4f} seconds'.format(toc - tic))
 
 
 
 if __name__ == "__main__":
-    # print('Starting the process to process files')
+    print('Starting the process to process files')
     main()
-    # print('Process completed')
+    print('Process completed')

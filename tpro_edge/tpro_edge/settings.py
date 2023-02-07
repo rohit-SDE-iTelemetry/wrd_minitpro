@@ -89,6 +89,7 @@ DATABASES = {
        'ENGINE': 'django.db.backends.postgresql',
        'NAME': 'wrd_db',
        'USER': 'wrduser',
+    #    'USER': 'wrd_user',
        'PASSWORD': 'wrd@123456',
        'HOST': 'localhost',
        'PORT': '',
