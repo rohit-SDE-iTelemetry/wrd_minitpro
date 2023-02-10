@@ -14,5 +14,6 @@ urlpatterns = [
     # path('', Reports.as_view(), name='report'),
     # path('', update_chart_n_table),
     path('download-report', download_report, name='download_report'),
+    path('download-datewise-report', download_datewise_report, name='download_datewise_report'),
 
 ]

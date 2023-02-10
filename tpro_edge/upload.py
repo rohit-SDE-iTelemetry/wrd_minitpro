@@ -446,19 +446,19 @@ class Reader():
                     reading_ts = reads['timestamp']
                     reads.pop('timestamp')
 
-                    print('file_T_stamp >>> ',file_T_stamp)
+                    print('file_T_stamp >>> ',datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3))
                     print('reading_ts >>> ',reading_ts)
                 
                     readingObj = Reading(site = Site.objects.get(prefix = details.get('prefix').lower()),
                                         reading = str(reads),
                                         timestamp = reading_ts,
-                                        last_file_at = file_T_stamp)
+                                        last_file_at = datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3))
                     readingObj.save()
                     
                     siteObj = Site.objects.get(prefix = details.get('prefix').lower())
                     siteObj.last_reading = str(reads)
                     siteObj.last_reading_at = reading_ts
-                    siteObj.last_file_at = file_T_stamp
+                    siteObj.last_file_at = datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3)
                     siteObj.parameters = details.get('params')
 
                     then = datetime.strptime(str(reading_ts), "%Y-%m-%d %H:%M:%S")
@@ -667,7 +667,7 @@ def main():
     all_csv = glob.glob(path + "/*.csv")
     all_json = glob.glob(path + "/*.json")
     all_files = all_csv + all_json
-    for f in tqdm(all_files[:]):
+    for f in tqdm(all_files[:2]):
         observer = Reader(os.path.join(path, os.path.basename(f)))
         observer.initiate()
         time.sleep(0.5)

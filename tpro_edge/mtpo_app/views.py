@@ -211,8 +211,8 @@ class Dashboard(View):
 def download_report(request):
     response = HttpResponse(content_type='application/ms-excel')
     response['Content-Disposition'] = 'attachment; filename="site_report.xlsx"'
-    startdate = '2023-02-06'
-    enddate = '2023-02-07'
+    startdate = datetime.now().date()
+    enddate = (datetime.now() + timedelta(days=1)).date()
 
     wb = Workbook()
     style = xlwt.easyxf('font: bold 1')
@@ -241,10 +241,11 @@ def download_report(request):
             sheet1.write(counter, 2, site.status, offline)
 
         counter = counter + 1
-        col = 1
+        col = 2
         readingobj = Reading.objects.filter(site=site, timestamp__range=[startdate, enddate]).order_by('timestamp')
         if(readingobj.count() > 0):
             sheet1.write(counter, 0, 'Timestamp', style)
+            sheet1.write(counter, 1, 'File Reached At', style)
         # print('readingobj >>>> ',readingobj, readingobj.count())
         # df = pd.DataFrame.from_records(list(Reading.objects.filter(site=site, timestamp__range=[startdate, enddate]).values('timestamp', 'reading')))
         # df['data'] = df['reading'].apply(eval)
@@ -259,8 +260,9 @@ def download_report(request):
             for read in readingobj:
                 counter = counter + 1
                 sheet1.write(counter, 0, str(read.timestamp))
+                sheet1.write(counter, 1, str(read.last_file_at))
                 readings = eval(read.reading)
-                par_col = 1
+                par_col = 2
                 for parms in param_count:
                     try:
                         sheet1.write(counter, par_col, str(readings[parms]))
@@ -281,9 +283,84 @@ def download_report(request):
     return response
 
 
+def download_datewise_report(request):
+    response = HttpResponse(content_type='application/ms-excel')
+
+    startdate = request.GET.get('startdate')
+    enddate = request.GET.get('enddate')
+
+    init_date_format = "%B %d, %Y"
+
+    f_startdate = datetime.strptime(startdate, init_date_format).strftime('%Y-%m-%d %H:%M')
+    f_enddate = datetime.strptime(enddate, init_date_format).strftime('%Y-%m-%d %H:%M')
+    response['Content-Disposition'] = 'attachment; filename="datewise_site_report.xlsx"'
+
+
+    wb = Workbook()
+    style = xlwt.easyxf('font: bold 1')
+    live = xlwt.easyxf('font: bold 1, color green;')
+    delay = xlwt.easyxf('font: bold 1, color orange;')
+    offline = xlwt.easyxf('font: bold 1, color red;')
+    # add_sheet is used to create sheet.
+    sheet1 = wb.add_sheet('Sheet 1')
+    sheet1.write(0, 0, 'DATE :', style)
+    sheet1.write(0, 1, f'{startdate} - {enddate}')
+
+    counter = 2
+    sites = Site.objects.all().order_by('name')
+    for site in sites:
+        sheet1.write(counter, 0, 'Site Name', style)
+        sheet1.write(counter, 1, 'WIMS Code', style)
+        sheet1.write(counter, 2, 'Status', style)
+        counter = counter + 1
+        sheet1.write(counter, 0, site.name.capitalize())
+        sheet1.write(counter, 1, NHP.get(site.prefix.lower(),'-'))
+        if(site.status == 'Live'):
+            sheet1.write(counter, 2, site.status, live)
+        elif(site.status == 'Delay'):
+            sheet1.write(counter, 2, site.status, delay)
+        else:
+            sheet1.write(counter, 2, site.status, offline)
+
+        counter = counter + 1
+        col = 2
+        readingobj = Reading.objects.filter(site=site, timestamp__range=[f_startdate, f_enddate]).order_by('timestamp')
+        if(readingobj.count() > 0):
+            sheet1.write(counter, 0, 'Timestamp', style)
+            sheet1.write(counter, 1, 'File Reached At', style)
+        if(readingobj.count() > 0):
+            param_count = []
+            for i in eval(site.parameters):
+                param_count.append(i.lower())
+                sheet1.write(counter, col, i.capitalize(), style)
+                col = col + 1
+
+            for read in readingobj:
+                counter = counter + 1
+                sheet1.write(counter, 0, str(read.timestamp))
+                sheet1.write(counter, 1, str(read.last_file_at))
+                try:
+                    readings = eval(read.reading)
+                except:
+                    continue
+                par_col = 2
+                for parms in param_count:
+                    try:
+                        sheet1.write(counter, par_col, str(readings[parms]))
+                    except:
+                        sheet1.write(counter, par_col, str(' '))
+                    par_col = par_col + 1
+
+            counter = counter + 3
+        else:
+            counter = counter + 1
+
+    wb.save(response)
+    return response
+
+
 
 class Reports(View):
-
     def get(self, request):
         # assuming we will have only one station
         try:

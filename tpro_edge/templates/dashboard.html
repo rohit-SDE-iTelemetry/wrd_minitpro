@@ -2,13 +2,13 @@
 
 {% block content %}
 <!-- Begin Page Content -->
+
 <style>
 
 .ScrollStyle{
     max-height: 400px;
     overflow-y: scroll;
 }
-
 </style>
 <meta http-equiv="refresh" content="1800">
 <div class="container-fluid mt-1">
@@ -16,11 +16,19 @@
       style="box-shadow: 0 0 1rem 0 rgba(0, 0, 0, .2);border-radius:10px;">
       <div class="card-body">
         <div class="row">
-          <div class="col-lg-6">
+          <div class="col-lg-3">
             <h5 class="card-title text-primary"><b><small><strong><i class="fa-solid fa-droplet"></i> WRD CHHATTISGARH</strong></small></b></h5>
           </div>
-          <div class="col-lg-3 text-center">
+          <div class="col-lg-2 text-center">
             <a href="/download-report"><small><i class="fa-solid fa-file-arrow-down"></i> Download Daily Report</small></a>
+          </div>
+          <div class="col-lg-4 text-center">
+            <!-- <label for="" class="text-primary"><small><strong><i class="fa-solid fa-calendar-days"></i> Download Datewise Report</small></strong></small></label> -->
+            <div id="reportrange" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
+              <i class="fa fa-calendar"></i>&nbsp;
+              <span ></span> <i class="fa fa-caret-down"></i>
+          </div>
+            <span style="cursor: pointer;" class="text-primary" onclick="get_datewise_report()"><strong>&nbsp;&nbsp;<i class="fa-solid fa-download"></i><small> Download</small></strong></span>
           </div>
           <div class="col-lg-3 text-right">
             <small><strong>Last Data Sync. At : <span class="text-danger" style="border: 1px solid grey;border-radius:5px;padding:5px;">{% now "jS F Y H:i:s" %}</span></strong><a href="/" style="text-decoration: none;"><span><strong>&nbsp;&nbsp;<i class="fa-solid fa-rotate text-success"></i></strong></span></a></small>
@@ -146,6 +154,20 @@
 <div class="row mb-4">
 </div>
 <!-- /.container-fluid -->
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js" defer></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+
+<!-- <script>
+  $(document).ready(function() {
+      $("#datepicker").datepicker();
+  });
+</script> -->
+
 <script>
   function view_all(){
     $('.live').show();
@@ -168,4 +190,43 @@
     $('.offline').show();
   }
 </script>
+<script>
+  function get_datewise_report(){
+    let dates = $('#reportrange span').html();
+    let startdate = dates.split('-')[0].trim();
+    let enddate = dates.split('-')[1].trim();
+    console.log('startdate >>> ',startdate);
+    console.log('enddate >>> ',enddate);
+    var URL  = '/download-datewise-report?startdate='+startdate+'&enddate='+enddate+'';
+    window.open(URL, '_blank');
+  }
+
+
+  $(function() {
+
+    var start = moment().subtract(29, 'days');
+    var end = moment();
+
+    function cb(start, end) {
+        $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+    }
+
+    $('#reportrange').daterangepicker({
+        startDate: start,
+        endDate: end,
+        ranges: {
+           'Today': [moment(), moment()],
+           'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+           'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+           'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+           'This Month': [moment().startOf('month'), moment().endOf('month')],
+           'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+    }, cb);
+
+    cb(start, end);
+
+});
+</script>
 {% endblock %}
+
