@@ -19,22 +19,28 @@ import numpy as np
 from tqdm import tqdm
 import logging
 
-# FORMAT = "%(asctime)s - %(message)s"
-# logging.basicConfig(filename='/home/wrdnhp/tpro_edge/wrd_minitpro/cgsw.log', filemode='a', format=FORMAT)
-# log = logging.getLogger()
-# log.setLevel(logging.INFO)
-
+FORMAT = "%(asctime)s - %(message)s"
+logging.basicConfig(filename='/home/WRD/cgsw_2023.log', filemode='a', format=FORMAT)
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
 TS_FMT = "%Y-%m-%d %H:%M:%S"
-PARENT_DIR = '/home/rohit/Desktop/dev/tpro_edge/'
-
-WATCHDIRECTORY = "/home/rohit/Desktop/dev/tpro_edge/watch_directory/"
-PROCESSED_FILES = '/home/rohit/Desktop/dev/tpro_edge/processed_files/'
-JUNK = '/home/rohit/Desktop/dev/tpro_edge/JUNK/'
-
 tday = datetime.now().date().strftime('%d%b%Y')
-TDAY_JUNK = JUNK+str(tday)+'_bad_files/'
-TDAY_PROCESSED = PROCESSED_FILES+str(tday)+'/'
+
+# WATCHDIRECTORY = "/home/WRD/files/"
+WATCHDIRECTORY = "/tmp/Feb23/"
+JUNK_FILES_DIRECTORY = "/home/WRD/JUNK_FILES/"
+WIMS_UPLOAD_FILES_DIRECTORY = "/home/WRD/WIMS_UPLOAD_FILES/"
+PROCESSED_FILES_DIRECTORY = "/home/WRD/PROCESSED_FILES/"
+
+EMPTY_FILES_DIRECTORY = JUNK_FILES_DIRECTORY+"EMPTY_FILES/"
+BAD_FILES_DIRECTORY = JUNK_FILES_DIRECTORY+"BAD_FILES/"
+
+TDAY_EMPTY = EMPTY_FILES_DIRECTORY+str(tday)+'_bad_files/'
+TDAY_BAD = BAD_FILES_DIRECTORY+str(tday)+'_bad_files/'
+TDAY_PROCESSED = PROCESSED_FILES_DIRECTORY+str(tday)+'/'
+TDAY_WIMS_UPLOAD = WIMS_UPLOAD_FILES_DIRECTORY+str(tday)+'/'
+
 
 PARAMETER_SENSOR_MAPPING = {1: "battery capacity", 2: "level",
                             3: 'hourly rainfall', 50: 'daily rainfall',
@@ -380,12 +386,20 @@ WRD_PARAMETER_SENSOR_MAPPING = {1: "battery capacity", 2: "level",
 
 def _check_dependencies():
     dir_list = [
+        JUNK_FILES_DIRECTORY,
+        WIMS_UPLOAD_FILES_DIRECTORY,
+        PROCESSED_FILES_DIRECTORY,
+        EMPTY_FILES_DIRECTORY,
+        BAD_FILES_DIRECTORY,
+        TDAY_EMPTY,
+        TDAY_BAD,
         TDAY_PROCESSED,
-        TDAY_JUNK,
+        TDAY_WIMS_UPLOAD
     ]
     for dir in dir_list:
         if not os.path.exists(dir):
             os.makedirs(dir)
+            log.info(f"{dir} - directory created")
 
 
 def get_file_information(file_name):
@@ -431,12 +445,17 @@ class Reader():
             'file_info': get_file_information(
                 self.filepath)
         }
-        # print('details >>>> ',details)
+        log.info(f"{self.prefix.lower()} - prefix details : {details}")
         if(details):
-            print('details >>>> ',details,'\n')
             self.prefix = details.get('prefix').lower()
+            if(len(details.get('readings')) == 0):
+                log.info(f"{details.get('filename')} file moved to Empty folder")
+                shutil.move(details.get('filename'), TDAY_EMPTY + details.get('stn_filename'))
+                return False
+
             for reads in details.get('readings'):
                 self.readings = reads
+                self.wims_upload = True
                 self._send2wims()                
                 try:
                     ti_m = os.path.getmtime(details.get('filename'))
@@ -445,16 +464,15 @@ class Reader():
                     file_T_stamp = time.strftime("%Y-%m-%d %H:%M:%S", t_obj)
                     reading_ts = reads['timestamp']
                     reads.pop('timestamp')
-
-                    print('file_T_stamp >>> ',datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3))
-                    print('reading_ts >>> ',reading_ts)
                 
                     readingObj = Reading(site = Site.objects.get(prefix = details.get('prefix').lower()),
                                         reading = str(reads),
                                         timestamp = reading_ts,
-                                        last_file_at = datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3))
+                                        last_file_at = datetime.strptime(reading_ts, "%Y-%m-%d %H:%M:%S") - timedelta(hours=0, minutes=3),
+                                        to_wims = self.wims_upload)
                     readingObj.save()
-                    
+                    log.info(f"{details.get('filename')} - readings saved to database, with reading : {str(reads)}")
+                
                     siteObj = Site.objects.get(prefix = details.get('prefix').lower())
                     siteObj.last_reading = str(reads)
                     siteObj.last_reading_at = reading_ts
@@ -473,16 +491,25 @@ class Reader():
                         siteObj.status = 'Offline'
                     else:
                         siteObj.status = 'Live'
+                    siteObj.to_wims = self.wims_upload
                     siteObj.save()
-
+                    log.info(f"prefix : {self.prefix.lower()}, File timestamp :{datetime.strptime(reading_ts, '%Y-%m-%d %H:%M:%S') - timedelta(hours=0, minutes=3)} with reading timestamp : {reading_ts}")
+                    log.info(f"{self.prefix.lower()} site status updated to {siteObj.status}")
+                    #try:
                     shutil.move(details.get('filename'), TDAY_PROCESSED + details.get('stn_filename'))
+                    log.info(f"{details.get('filename')} file moved to {TDAY_PROCESSED} successfully")
                 except FileNotFoundError as err:
-                    pass
+                    log.error(f"FileNotFound Error occurred while processing file due to : {err}")
+                    log.error(f"FileNotFound Error occurred while processing file : {details.get('filename')} for prefix : {self.prefix.lower()}")
                 except IntegrityError as err:
-                    shutil.move(details.get('filename'), TDAY_JUNK + details.get('stn_filename'))
-                except:
-                    shutil.move(details.get('filename'), TDAY_JUNK + details.get('stn_filename'))
-            print('==================================================\n\n')
+                    shutil.move(details.get('filename'), TDAY_BAD + details.get('stn_filename'))
+                    log.error(f"Integrity Error occurred while processing file due to : {err}")
+                    log.error(f"{details.get('filename')} file move to : {TDAY_BAD}")
+                except Exception as err:
+                    shutil.move(details.get('filename'), TDAY_BAD + details.get('stn_filename'))
+                    log.error(f"Error occurred while processing file due to : {err}")
+                    log.error(f"{details.get('filename')} file move to : {TDAY_BAD}")
+            # print('==================================================\n\n')
 
 
 
@@ -495,31 +522,57 @@ class Reader():
             tmp_fpath, fname2send = self._format2wims()
             if tmp_fpath:
                 try:
-                    print("sending file to wrd chattisgarh test server %s, %s" % (fname2send, tmp_fpath))
+                    log.info("sending file to wrd chattisgarh test server %s, %s" % (fname2send, tmp_fpath))
                     # with pysftp.Connection(host=host,username=user,password=passwd) as sftp:
                     #     sftp.put(localpath=tmp_fpath,remotepath="/chhattisgarh_sw/%s" % fname2send,confirm=False)
                     #     sftp.close()
-                    #     print('%s sent to %s FTP' % (fname2send, host))
+                    # Connect to the SFTP server
+                    cnopts = pysftp.CnOpts()
+                    cnopts.hostkeys = None
+                    with pysftp.Connection(host, username=user, password=passwd, cnopts=cnopts) as sftp:
+                        # Upload a file to the SFTP server
+                        local_file = tmp_fpath
+                        remote_file = "/chhattisgarh_sw/%s" % fname2send
+                        sftp.put(local_file, remote_file)
+
+                        log.info('%s sent to %s FTP' % (fname2send, host))
+                        self.wims_upload = True
+                    shutil.move(tmp_fpath, TDAY_WIMS_UPLOAD + fname2send)
                     os.remove(tmp_fpath)
                 except FileNotFoundError:
-                    print('%s file not found for test server' % fname2send)
+                    #self.wims_upload = False
+                    log.error('%s file not found for wims server' % fname2send)
                 except Exception as err:
-                    print('%s sending failed to %s FTP test server  due to : %s' % (fname2send, host, err))
+                    self.wims_upload = False
+                    log.error('%s sending failed to %s FTP wims server  due to : %s' % (fname2send, host, err))
                     return False
             else:
-                print('no wims tmp_path detected.')
+                self.wims_upload = False
+                log.info('no wims tmp_path detected for %s ' % self.prefix.lower())
         else:
-            print("File empty or error")
+            self.wims_upload = False
+            log.info("File empty or error")
 
 
     def _format2wims(self):
         """ this fxn needs timestamp as a datetime object"""
-        timestamp = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M')
-        # Dev-268
-        if datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%M') == '30':
-            print('30 min. file skipped for %s' % self.prefix)
-            return None, None
-        timestamp_for_filename = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime("%y%m%d_%H%M%S_")
+        try:
+            timestamp = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M')
+        except:
+            timestamp = datetime.strptime(str(self.readings.get('timestamp')+ ' 00:00:00'), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M')
+        try:
+            if datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime('%M') == '30':
+                log.info('30 min. file skipped for %s' % self.prefix)
+                return None, None
+        except:
+            if datetime.strptime(str(self.readings.get('timestamp')+ ' 00:00:00'), '%Y-%m-%d %H:%M:%S').strftime('%M') == '30':
+                log.info('30 min. file skipped for %s' % self.prefix)
+                return None, None
+
+        try:
+            timestamp_for_filename = datetime.strptime(str(self.readings.get('timestamp')), '%Y-%m-%d %H:%M:%S').strftime("%y%m%d_%H%M%S_")
+        except:
+            timestamp_for_filename = datetime.strptime(str(self.readings.get('timestamp')+ ' 00:00:00'), '%Y-%m-%d %H:%M:%S').strftime("%y%m%d_%H%M%S_")
         # print('%s station reading: %s' % (self.prefix,self.readings))
         prefix = self.prefix.lower()
         get_id = NHP.get(prefix, '')
@@ -527,7 +580,7 @@ class Reader():
         if get_id:
             wims_site_id = NHP.get(prefix, '').upper()
         else:
-            print('Wims Station Id not found for: %s' % prefix)
+            log.info('Wims Station Id not found for: %s' % prefix)
             return False
 
         data_str = ['&' + prefix.upper(), timestamp, '4190098101']
@@ -560,7 +613,7 @@ class Reader():
 
         fname2send = "CGSW_" + timestamp_for_filename + wims_site_id + ".csv"
         fpath = os.path.join('/tmp', fname2send)
-        # print('data_str >>> ',data_str)
+        log.info(f'{self.prefix.lower()} - prefix wims string : {data_str}')
         with open(fpath, 'w') as fp:
             fp.write(','.join(data_str))
         return fpath, fname2send
@@ -569,7 +622,7 @@ class Reader():
 
 
     def _temporary(self):
-        # print('formatting  WRD file: %s' % self.filepath)
+        log.info('%s formatting  WRD file: %s' % (self.prefix.lower(), self.filepath))
         try:
             df = pd.read_csv(self.filepath)
             df['timestamp'] = df['Sample Date'] + " " + df['Sample Time']
@@ -667,10 +720,10 @@ def main():
     all_csv = glob.glob(path + "/*.csv")
     all_json = glob.glob(path + "/*.json")
     all_files = all_csv + all_json
-    for f in tqdm(all_files[:2]):
+    for f in tqdm(all_files[:]):
         observer = Reader(os.path.join(path, os.path.basename(f)))
         observer.initiate()
-        time.sleep(0.5)
+        #time.sleep(0.1)
 
     # toc = time.time()
     # print('Done in {:.4f} seconds'.format(toc - tic))
@@ -678,6 +731,10 @@ def main():
 
 
 if __name__ == "__main__":
-    print('Starting the process to process files')
+    log.info('####################################################################################################')
+    log.info('####################################################################################################')
+    log.info('Starting the process to process files')
     main()
-    print('Process completed')
+    log.info('Process completed')
+    log.info('####################################################################################################')
+    log.info('####################################################################################################')
